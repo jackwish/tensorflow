@@ -18,6 +18,7 @@ limitations under the License.
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <iomanip>
 #include <limits>
 
 #include "tensorflow/contrib/lite/c/builtin_op_data.h"
@@ -305,6 +306,12 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
 
     int exponent;
     QuantizeMultiplier(real_multiplier, &data->output_multiplier, &exponent);
+    std::cout << "[wzh] conv pre computed args --------------------------" << std::endl;
+    std::cout << "[wzh]                input scale : " << std::setprecision(17) << input->params.scale << std::endl;
+    std::cout << "[wzh]               filter scale : " << std::setprecision(17) << filter->params.scale << std::endl;
+    std::cout << "[wzh]               output scale : " << std::setprecision(17) << output->params.scale << std::endl;
+    std::cout << "[wzh]            real_multiplier : " << std::setprecision(17) << real_multiplier << std::endl;
+    std::cout << "[wzh]          output_multiplier : " << data->output_multiplier << std::endl;
     data->output_shift = -exponent;
     CalculateActivationRangeUint8(params->activation, output,
                                   &data->output_activation_min,
@@ -424,6 +431,8 @@ void EvalQuantized(TfLiteContext* context, TfLiteNode* node,
   } else {
     effective_kernel_type = kernel_type;
   }
+  std::cout << "[wzh] " << __func__ << " always use reference implementation" << std::endl;
+  effective_kernel_type = kReference;
 
   switch (effective_kernel_type) {
     case kReference: {

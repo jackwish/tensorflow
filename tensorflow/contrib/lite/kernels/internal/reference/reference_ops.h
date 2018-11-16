@@ -23,6 +23,8 @@ limitations under the License.
 #include <limits>
 #include <memory>
 #include <type_traits>
+#include <iostream>
+#include <fstream>
 
 #include "fixedpoint/fixedpoint.h"
 #include "public/gemmlowp.h"
@@ -231,6 +233,28 @@ inline void Conv(const ConvParams& params, const RuntimeShape& input_shape,
   }
 }
 
+template<typename Dtype>
+void dump_buffer(const std::string fname, const Dtype* buf, const RuntimeShape& shape) {
+  TFLITE_CHECK_EQ(shape.DimensionsCount(), 4);
+  const int n = shape.Dims(0);
+  const int c = shape.Dims(3);
+  const int h = shape.Dims(1);
+  const int w = shape.Dims(2);
+  std::ofstream f;
+  f.open(fname.c_str(), std::ios::out | std::ios::trunc);
+  f << "shape: " << n << ", " << c << ", " << h << ", " << w << std::endl;
+  for (int ni = 0; ni < n; ni++) {
+    for (int ci = 0; ci < c; ci++) {
+      for (int hi = 0; hi < h; hi++) {
+        for (int wi = 0; wi < w; wi++) {
+          f << buf[Offset(shape, ni, hi, wi, ci)] << std::endl;
+        }
+      }
+    }
+  }
+  f.close();
+};
+
 inline void Conv(const ConvParams& params, const RuntimeShape& input_shape,
                  const uint8* input_data, const RuntimeShape& filter_shape,
                  const uint8* filter_data, const RuntimeShape& bias_shape,
@@ -270,6 +294,12 @@ inline void Conv(const ConvParams& params, const RuntimeShape& input_shape,
   const int filter_width = filter_shape.Dims(2);
   const int output_height = output_shape.Dims(1);
   const int output_width = output_shape.Dims(2);
+  int32* input_buffer = new int32[input_shape.Elems()];
+  int32* weight_buffer = new int32[filter_shape.Elems()];
+  int32* pre_bias = new int32[output_shape.Elems()];
+  int32* pre_round = new int32[output_shape.Elems()];
+  int32* post_round = new int32[output_shape.Elems()];
+  int32* output_buffer = new int32[output_shape.Elems()];
   for (int batch = 0; batch < batches; ++batch) {
     for (int out_y = 0; out_y < output_height; ++out_y) {
       for (int out_x = 0; out_x < output_width; ++out_x) {
@@ -289,29 +319,73 @@ inline void Conv(const ConvParams& params, const RuntimeShape& input_shape,
                     (in_y < input_height)) {
                   int32 input_val = input_data[Offset(input_shape, batch, in_y,
                                                       in_x, in_channel)];
+                  input_buffer[Offset(input_shape, batch, in_y, in_x, in_channel)] = input_val;
                   int32 filter_val =
                       filter_data[Offset(filter_shape, out_channel, filter_y,
                                          filter_x, in_channel)];
+                  weight_buffer[Offset(filter_shape, out_channel, filter_y, filter_x, in_channel)] = filter_val;
                   acc +=
                       (filter_val + filter_offset) * (input_val + input_offset);
                 }
               }
             }
           }
+          pre_bias[Offset(output_shape, batch, out_y, out_x, out_channel)] = acc;
           if (bias_data) {
             acc += bias_data[out_channel];
           }
+          pre_round[Offset(output_shape, batch, out_y, out_x, out_channel)] = acc;
           acc = MultiplyByQuantizedMultiplier(acc, output_multiplier,
                                               output_shift);
+          post_round[Offset(output_shape, batch, out_y, out_x, out_channel)] = acc;
           acc += output_offset;
           acc = std::max(acc, output_activation_min);
           acc = std::min(acc, output_activation_max);
+          output_buffer[Offset(output_shape, batch, out_y, out_x, out_channel)] = acc;
           output_data[Offset(output_shape, batch, out_y, out_x, out_channel)] =
               static_cast<uint8>(acc);
         }
       }
     }
   }
+  std::cout << "[wzh] " << __func__ << " dump conv data..." << std::endl;
+  static int count = 1;
+  auto fname = [count] (const std::string key) -> std::string {
+    std::string prefix = "tflite.conv." + std::to_string(count) + ".";
+    std::string suffix = ".log";
+    return prefix + key + suffix;
+  };
+
+  {
+    std::ofstream fparam;
+    fparam.open(fname("param").c_str(), std::ios::out | std::ios::trunc);
+    fparam << "stride: h " << stride_height << ", w " << stride_width << std::endl;
+    fparam << "dilate: h " << dilation_height_factor << ", w " << dilation_width_factor << std::endl;
+    fparam << "padding: h " << pad_height << ", w " << pad_width << std::endl;
+    fparam << "input zero point: " << input_offset << std::endl;
+    fparam << "weight zero point: " << filter_offset << std::endl;
+    fparam << "output zero point: " << output_offset << std::endl;
+    fparam << "output_multiplier: " << output_multiplier << std::endl;
+    fparam << "output_shift: " << output_shift << std::endl;
+    fparam << "output_activation_min: " << output_activation_min << std::endl;
+    fparam << "output_activation_max: " << output_activation_max << std::endl;
+    fparam.close();
+  }
+
+  dump_buffer<int32>(fname("input"), input_buffer, input_shape);
+  dump_buffer<int32>(fname("weights"), weight_buffer, filter_shape);
+  dump_buffer<int32>(fname("bias"), bias_data, bias_shape);
+  dump_buffer<int32>(fname("pre-bias"), pre_bias, output_shape);
+  dump_buffer<int32>(fname("pre-round"), pre_round, output_shape);
+  dump_buffer<int32>(fname("post-round"), post_round, output_shape);
+  dump_buffer<int32>(fname("output"), output_buffer, output_shape);
+  delete[] input_buffer;
+  delete[] weight_buffer;
+  delete[] pre_bias;
+  delete[] pre_round;
+  delete[] post_round;
+  delete[] output_buffer;
+  count++;
 }
 
 template <typename T>

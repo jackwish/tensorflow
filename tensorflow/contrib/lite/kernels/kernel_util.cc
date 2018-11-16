@@ -17,6 +17,8 @@ limitations under the License.
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <iostream>
+#include <iomanip>
 
 #include "tensorflow/contrib/lite/kernels/internal/round.h"
 
@@ -38,7 +40,21 @@ TfLiteStatus GetQuantizedConvolutionMultipler(TfLiteContext* context,
                               1e-6 * std::min(input_product_scale, bias_scale));
   TF_LITE_ENSURE(context, input_product_scale >= 0);
 
-  *multiplier = input_product_scale / output_scale;
+  /* *multiplier = input_product_scale / output_scale; */
+
+  const double input_scale = input->params.scale;
+  const double weight_scale = filter->params.scale;
+
+  *multiplier = input->params.scale * filter->params.scale / output->params.scale;
+  std::cout << "compute multiplier --------------------------------------------" << std::endl;
+  std::cout << "             input scale " << std::setprecision(17) << input->params.scale << std::endl;
+  std::cout << "            output scale " << std::setprecision(17) << output->params.scale << std::endl;
+  std::cout << "              bias scale " << std::setprecision(17) << bias->params.scale << std::endl;
+  std::cout << "                 product " << std::setprecision(17) << input->params.scale * filter->params.scale << std::endl;
+  std::cout << "            weight scale " << std::setprecision(17) << filter->params.scale << std::endl;
+  std::cout << "      my impl multiplier " << std::setprecision(17) << input->params.scale * filter->params.scale / output->params.scale << std::endl;
+  std::cout << "     original multiplier " << std::setprecision(17) << input->params.scale * filter->params.scale / output_scale << std::endl;
+  std::cout << "          out multiplier " << std::setprecision(17) << *multiplier << std::endl;
 
   return kTfLiteOk;
 }
