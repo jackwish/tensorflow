@@ -18,6 +18,7 @@ limitations under the License.
 #include <cmath>
 #include <memory>
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 
 #include "tensorflow/contrib/lite/kernels/internal/round.h"
@@ -46,15 +47,29 @@ TfLiteStatus GetQuantizedConvolutionMultipler(TfLiteContext* context,
   const double weight_scale = filter->params.scale;
 
   *multiplier = input->params.scale * filter->params.scale / output->params.scale;
-  std::cout << "compute multiplier --------------------------------------------" << std::endl;
-  std::cout << "             input scale " << std::setprecision(17) << input->params.scale << std::endl;
-  std::cout << "            output scale " << std::setprecision(17) << output->params.scale << std::endl;
-  std::cout << "              bias scale " << std::setprecision(17) << bias->params.scale << std::endl;
-  std::cout << "                 product " << std::setprecision(17) << input->params.scale * filter->params.scale << std::endl;
-  std::cout << "            weight scale " << std::setprecision(17) << filter->params.scale << std::endl;
-  std::cout << "      my impl multiplier " << std::setprecision(17) << input->params.scale * filter->params.scale / output->params.scale << std::endl;
-  std::cout << "     original multiplier " << std::setprecision(17) << input->params.scale * filter->params.scale / output_scale << std::endl;
-  std::cout << "          out multiplier " << std::setprecision(17) << *multiplier << std::endl;
+
+  static int count = 1;
+  static bool normal_conv = true;
+  auto fname = [count] (const std::string key) -> std::string {
+    std::string prefix = "tflite.conv." + std::to_string(count) + ".";
+    std::string suffix = ".log";
+    return prefix + key + suffix;
+  };
+  if (normal_conv || count == 15 /* last conv of mobilenet */) {
+    std::ofstream fparam;
+    fparam.open(fname("quant").c_str(), std::ios::out | std::ios::trunc);
+    fparam << "             input scale " << std::setprecision(17) << input->params.scale << std::endl;
+    fparam << "            output scale " << std::setprecision(17) << output->params.scale << std::endl;
+    fparam << "            weight scale " << std::setprecision(17) << filter->params.scale << std::endl;
+    fparam << "      my impl multiplier " << std::setprecision(17) << input->params.scale * filter->params.scale / output->params.scale << std::endl;
+    fparam << "     original multiplier " << std::setprecision(17) << input->params.scale * filter->params.scale / output_scale << std::endl;
+    fparam << "          out multiplier " << std::setprecision(17) << *multiplier << std::endl;
+    fparam << "              bias scale " << std::setprecision(17) << bias->params.scale << std::endl;
+    fparam << "                 product " << std::setprecision(17) << input->params.scale * filter->params.scale << std::endl;
+    fparam.close();
+    count++;
+  }
+  normal_conv = !normal_conv;
 
   return kTfLiteOk;
 }

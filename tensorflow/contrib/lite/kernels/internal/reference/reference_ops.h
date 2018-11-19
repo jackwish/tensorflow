@@ -372,10 +372,10 @@ inline void Conv(const ConvParams& params, const RuntimeShape& input_shape,
     fparam.close();
   }
 
-  dump_buffer<int32>(fname("input"), input_buffer, input_shape);
-  dump_buffer<int32>(fname("weights"), weight_buffer, filter_shape);
-  dump_buffer<int32>(fname("bias"), bias_data, bias_shape);
-  dump_buffer<int32>(fname("pre-bias"), pre_bias, output_shape);
+  /* dump_buffer<int32>(fname("input"), input_buffer, input_shape); */
+  /* dump_buffer<int32>(fname("weights"), weight_buffer, filter_shape); */
+  /* dump_buffer<int32>(fname("bias"), bias_data, bias_shape); */
+  /* dump_buffer<int32>(fname("pre-bias"), pre_bias, output_shape); */
   dump_buffer<int32>(fname("pre-round"), pre_round, output_shape);
   dump_buffer<int32>(fname("post-round"), post_round, output_shape);
   dump_buffer<int32>(fname("output"), output_buffer, output_shape);
