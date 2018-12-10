@@ -179,6 +179,13 @@ class RuntimeShape {
     TFLITE_DCHECK_LT(i, size_);
     return size_ > kMaxSmallSize ? dims_pointer_[i] : dims_[i];
   }
+  inline int32 Elems() const {
+    int32 elems = 1;
+    for (int32 i = 0; i < DimensionsCount(); i++) {
+      elems *= Dims(i);
+    }
+    return elems;
+  }
   inline void SetDim(int i, int32 val) {
     TFLITE_DCHECK_GE(i, 0);
     TFLITE_DCHECK_LT(i, size_);

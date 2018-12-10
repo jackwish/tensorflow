@@ -23,6 +23,8 @@ limitations under the License.
 #include <limits>
 #include <memory>
 #include <type_traits>
+#include <fstream>
+#include <iomanip>
 
 #include "fixedpoint/fixedpoint.h"
 #include "public/gemmlowp.h"
@@ -2979,6 +2981,48 @@ inline void Gather(const tflite::GatherParams& op_params,
   }
 }
 
+#define DUMP_RESIZE_DATA 1
+
+#if DUMP_RESIZE_DATA
+inline std::string float2hex(float v) {
+  char c[4];
+  char buf[10] = { '\0' };
+  memcpy(c, &v, sizeof(float));
+  snprintf(buf, 9, "%02X%02X%02X%02X", c[3], c[2], c[1], c[0]);
+  std::string out(buf);
+  return out;
+}
+
+template <typename T>
+void dump_buffer(const std::string fname, const T* buf, const RuntimeShape& shape) {
+  TFLITE_CHECK_EQ(shape.DimensionsCount(), 4);
+  const int n = shape.Dims(0);
+  const int c = shape.Dims(3);
+  const int h = shape.Dims(1);
+  const int w = shape.Dims(2);
+  std::ofstream f;
+  f.open(fname.c_str(), std::ios::out | std::ios::trunc);
+  /* f << "shape: " << n << ", " << c << ", " << h << ", " << w << std::endl; */
+  for (int ni = 0; ni < n; ni++) {
+    for (int ci = 0; ci < c; ci++) {
+      for (int hi = 0; hi < h; hi++) {
+        for (int wi = 0; wi < w; wi++) {
+          f << "(" << std::setw(2) << ni << ", " << std::setw(2) << ci << ", " << std::setw(2) << hi << ", " << std::setw(2) << wi << ")  ";
+          if (typeid(T) == typeid(float)) {
+            float fv = buf[Offset(shape, ni, hi, wi, ci)];
+            f << float2hex(fv) << "  ";
+            f << std::setprecision(10) << fv << std::endl;
+          } else {
+            f << static_cast<uint32_t>(buf[Offset(shape, ni, hi, wi, ci)]) << std::endl;
+          }
+        }
+      }
+    }
+  }
+  f.close();
+};
+#endif
+
 template <typename T>
 inline void ResizeBilinear(const tflite::ResizeBilinearParams& op_params,
                            const RuntimeShape& unextended_input_shape,
@@ -3018,6 +3062,30 @@ inline void ResizeBilinear(const tflite::ResizeBilinearParams& op_params,
     width_scale = static_cast<float>(input_width - 1) / (output_width - 1);
   }
 
+#if DUMP_RESIZE_DATA
+  {
+    std::ofstream fparam;
+    fparam.open("param.log", std::ios::out | std::ios::trunc);
+    fparam << "   input h/w (" << input_height << ", " << input_width << ")" << std::endl;
+    fparam << "  output h/w (" << output_height << ", " << output_width << ")" << std::endl;
+    fparam << "height_scale " << std::setprecision(10) << height_scale
+           << "  " << float2hex(height_scale) << std::endl;
+    fparam << " width_scale " << std::setprecision(10) << width_scale
+           << "  " << float2hex(width_scale) << std::endl;
+    fparam.close();
+  }
+
+  float* d1 = new float[output_shape.Elems()];
+  float* d2 = new float[output_shape.Elems()];
+  float* d3 = new float[output_shape.Elems()];
+  float* d4 = new float[output_shape.Elems()];
+  float* mm1 = new float[output_shape.Elems()];
+  float* mm2 = new float[output_shape.Elems()];
+  float* mm3 = new float[output_shape.Elems()];
+  float* mm4 = new float[output_shape.Elems()];
+  float* before_cast_buf = new float[output_shape.Elems()];
+#endif
+
   for (int b = 0; b < batches; ++b) {
     for (int y = 0; y < output_height; ++y) {
       float input_y = y * height_scale;
@@ -3028,6 +3096,28 @@ inline void ResizeBilinear(const tflite::ResizeBilinearParams& op_params,
         int32 x0 = static_cast<int32>(std::floor(input_x));
         int32 x1 = std::min(x0 + 1, input_width - 1);
         for (int c = 0; c < depth; ++c) {
+#if DUMP_RESIZE_DATA
+          d1[Offset(output_shape, b, y, x, c)] = (1 - (input_y - y0)) * (1 - (input_x - x0));
+          d2[Offset(output_shape, b, y, x, c)] = (input_y - y0) * (1 - (input_x - x0));
+          d3[Offset(output_shape, b, y, x, c)] = (1 - (input_y - y0)) * (input_x - x0);
+          d4[Offset(output_shape, b, y, x, c)] = (input_y - y0) * (input_x - x0);
+          float i1 = static_cast<float>(input_data[Offset(input_shape, b, y0, x0, c)]);
+          float i2 = static_cast<float>(input_data[Offset(input_shape, b, y1, x0, c)]);
+          float i3 = static_cast<float>(input_data[Offset(input_shape, b, y0, x1, c)]);
+          float i4 = static_cast<float>(input_data[Offset(input_shape, b, y1, x1, c)]);
+          float m1 = i1 * d1[Offset(output_shape, b, y, x, c)];
+          float m2 = i2 * d2[Offset(output_shape, b, y, x, c)];
+          float m3 = i3 * d3[Offset(output_shape, b, y, x, c)];
+          float m4 = i4 * d4[Offset(output_shape, b, y, x, c)];
+          mm1[Offset(output_shape, b, y, x, c)] = m1;
+          mm2[Offset(output_shape, b, y, x, c)] = m2;
+          mm3[Offset(output_shape, b, y, x, c)] = m3;
+          mm4[Offset(output_shape, b, y, x, c)] = m4;
+          // float ret = m1 + ((m2 + m3) + m4);  // this one has different result
+          float ret = m1 + m2 + m3 + m4;
+          before_cast_buf[Offset(output_shape, b, y, x, c)] = ret;
+          T interpolation = static_cast<T>(ret);
+#else
           T interpolation =
               static_cast<T>(input_data[Offset(input_shape, b, y0, x0, c)] *
                                  (1 - (input_y - y0)) * (1 - (input_x - x0)) +
@@ -3037,11 +3127,34 @@ inline void ResizeBilinear(const tflite::ResizeBilinearParams& op_params,
                                  (1 - (input_y - y0)) * (input_x - x0) +
                              input_data[Offset(input_shape, b, y1, x1, c)] *
                                  (input_y - y0) * (input_x - x0));
+#endif
           output_data[Offset(output_shape, b, y, x, c)] = interpolation;
         }
       }
     }
   }
+
+#if DUMP_RESIZE_DATA
+  dump_buffer("input.log", input_data, input_shape);
+  dump_buffer("diff.1.log", d1, output_shape);
+  dump_buffer("diff.2.log", d2, output_shape);
+  dump_buffer("diff.3.log", d3, output_shape);
+  dump_buffer("diff.4.log", d4, output_shape);
+  dump_buffer("mul.1.log", mm1, output_shape);
+  dump_buffer("mul.2.log", mm2, output_shape);
+  dump_buffer("mul.3.log", mm3, output_shape);
+  dump_buffer("mul.4.log", mm4, output_shape);
+  dump_buffer("tf.float.log", before_cast_buf, output_shape);
+  delete[] d1;
+  delete[] d2;
+  delete[] d3;
+  delete[] d4;
+  delete[] mm1;
+  delete[] mm2;
+  delete[] mm3;
+  delete[] mm4;
+  delete[] before_cast_buf;
+#endif
 }
 
 template <typename T>

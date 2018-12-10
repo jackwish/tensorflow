@@ -143,11 +143,12 @@ TfLiteRegistration* Register_RESIZE_BILINEAR_NEON_OPT() {
 }
 
 TfLiteRegistration* Register_RESIZE_BILINEAR() {
-#ifdef USE_NEON
-  return Register_RESIZE_BILINEAR_NEON_OPT();
-#else
-  return Register_RESIZE_BILINEAR_GENERIC_OPT();
-#endif
+/* #ifdef USE_NEON */
+/*   return Register_RESIZE_BILINEAR_NEON_OPT(); */
+/* #else */
+/*   return Register_RESIZE_BILINEAR_GENERIC_OPT(); */
+/* #endif */
+  return Register_RESIZE_BILINEAR_REF();
 }
 
 }  // namespace builtin
