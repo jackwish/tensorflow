@@ -338,3 +338,13 @@ cc_test(
 #        ],
 #    }),
 #)
+
+# Build Tensorflowlite Library
+cc_binary(
+    name = "libtflite.so",
+    deps = [
+        ":framework",
+        "//tensorflow/contrib/lite/kernels:builtin_ops",
+    ],
+    linkshared=1
+)
