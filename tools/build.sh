@@ -22,4 +22,13 @@ export CXX=g++-4.8
 
 ########### build tflite archive and brenchmark ############################
 ./tensorflow/contrib/lite/tools/make/download_dependencies.sh
-make -f ./tensorflow/contrib/lite/tools/make/Makefile -j8
+
+# make -f ./tensorflow/contrib/lite/tools/make/Makefile -j8
+
+make -f ./tensorflow/contrib/lite/tools/make/Makefile \
+  CC=aarch64-linux-gnu-gcc \
+  CXX=aarch64-linux-gnu-g++ \
+  LIBS="-lpthread -lm -ldl" \
+  TARGET=RPI \
+  TARGET_ARCH=armv8a \
+  -j8
