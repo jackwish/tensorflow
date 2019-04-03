@@ -2981,7 +2981,7 @@ inline void Gather(const tflite::GatherParams& op_params,
   }
 }
 
-#define DUMP_RESIZE_DATA 1
+#define DUMP_RESIZE_DATA 0
 
 #if DUMP_RESIZE_DATA
 inline std::string float2hex(float v) {
