@@ -276,6 +276,10 @@ def _QuantizeActivationLayers(quantized_ops,
 
 def _CheckIfQuantizableOp(src_op, quantized_ops):
   """Check if the output of an op should be quantized.
+  
+  An op is quantizable if it is an Add or a Mul, which is not
+  immediately followed by an activation op, and one of its inputs
+  is (or connected to) a quantization (or quantizable) op.
 
   Args:
     src_op: op to be checked
