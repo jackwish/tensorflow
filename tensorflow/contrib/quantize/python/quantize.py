@@ -290,8 +290,8 @@ def _CheckIfQuantizableOp(src_op, quantized_ops):
   if not src_op_name.intersection(_VALID_SRC_OP):
     return False
 
-  # If src op is an add or a mul and the output is immediately
-  # followed by an activation skip
+  # Skip if src op is an add or a mul and the output of it is
+  # immediately followed by an activation op
   if len(src_op.outputs) == 1 and len(src_op.outputs[0].consumers()) == 1:
     op_consumers = src_op.outputs[0].consumers()
     if set([op_consumers[0].type]).intersection(_VALID_ACTIVATION_OP):
