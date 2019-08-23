@@ -20,6 +20,11 @@ namespace operator_property {
 OperatorProperty GetOperatorProperty(const BuiltinOperator& op) {
   OperatorProperty property;
   switch (op) {
+    case BuiltinOperator_ABS:
+      property.input_indexes = {0};
+      property.output_indexes = {0};
+      property.version = 2;
+      break;
     case BuiltinOperator_ADD:
       property.input_indexes = {0, 1};
       property.output_indexes = {0};

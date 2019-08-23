@@ -39,6 +39,7 @@ bool SupportsQuantization(const Operator& op) {
   }
   return type == OperatorType::kConv || type == OperatorType::kDepthwiseConv ||
          type == OperatorType::kFullyConnected ||
+         type == OperatorType::kAbs ||
          type == OperatorType::kConcatenation ||
          type == OperatorType::kL2Normalization || type == OperatorType::kAdd ||
          type == OperatorType::kAveragePool || type == OperatorType::kMaxPool ||
