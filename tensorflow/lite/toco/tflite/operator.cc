@@ -182,6 +182,22 @@ class DepthwiseConvolution
   }
 };
 
+class Abs : public SimpleOperator<FloorDivOperator> {
+ public:
+  explicit Abs() : SimpleOperator("ABS", OperatorType::kAbs) {}
+  int GetVersion(const OperatorSignature& op_signature) const override {
+    const string& input_name = op_signature.op->inputs[0];
+    const Array& input_array = op_signature.model->GetArray(input_name);
+    // Version 2 supports signed/unsigned int8 and signed int32 input types.
+    if (input_array.data_type == ArrayDataType::kInt8 ||
+        input_array.data_type == ArrayDataType::kUint8 ||
+        input_array.data_type == ArrayDataType::kInt32) {
+      return 2;
+    }
+    return 1;
+  }
+};
+
 class Add : public BuiltinOperator<AddOperator, ::tflite::AddOptions,
                                    ::tflite::BuiltinOptions_AddOptions> {
  public:
@@ -1060,6 +1076,8 @@ class Lstm : public BuiltinOperator<LstmCellOperator, ::tflite::LSTMOptions,
       case LstmCellOperator::KERNEL_BASIC:
         // KERNEL_BASIC was added in version 2.
         return 2;
+      default:
+        return -1;
     }
   }
 
@@ -2646,8 +2664,7 @@ std::vector<std::unique_ptr<BaseOperator>> BuildOperatorList(
       "SQUARE", OperatorType::kSquare));
   ops.push_back(MakeUnique<SimpleOperator<TensorFlowZerosLikeOperator>>(
       "ZEROS_LIKE", OperatorType::kZerosLike));
-  ops.push_back(
-      MakeUnique<SimpleOperator<AbsOperator>>("ABS", OperatorType::kAbs));
+  ops.push_back(MakeUnique<Abs>());
   ops.push_back(MakeUnique<SimpleOperator<HardSwishOperator>>(
       "HARD_SWISH", OperatorType::kHardSwish));
   ops.push_back(
