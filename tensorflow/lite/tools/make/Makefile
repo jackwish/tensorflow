@@ -25,8 +25,8 @@ HOST_ARCH := $(shell if uname -m | grep -q i[345678]86; then echo x86_32; else u
 
 # Override these on the make command line to target a specific architecture. For example:
 # make -f tensorflow/lite/tools/make/Makefile TARGET=rpi TARGET_ARCH=armv7l
-TARGET := $(HOST_OS)
-TARGET_ARCH := $(HOST_ARCH)
+TARGET ?= $(HOST_OS)
+TARGET_ARCH ?= $(HOST_ARCH)
 
 INCLUDES := \
 -I. \
@@ -55,15 +55,15 @@ LIBS := \
 # There are no rules for compiling objects for the host system (since we don't
 # generate things like the protobuf compiler that require that), so all of
 # these settings are for the target compiler.
-CXXFLAGS := -O3 -DNDEBUG -fPIC
+CXXFLAGS += -O3 -DNDEBUG -fPIC -flax-vector-conversions -fomit-frame-pointer
 CXXFLAGS += $(EXTRA_CXXFLAGS)
-CFLAGS := ${CXXFLAGS}
+CFLAGS += ${CXXFLAGS}
 CXXFLAGS += --std=c++11
-CFLAGS :=
+CFLAGS +=
 LDOPTS := -L/usr/local/lib
 ARFLAGS := -r
-TARGET_TOOLCHAIN_PREFIX :=
-CC_PREFIX :=
+TARGET_TOOLCHAIN_PREFIX ?=
+CC_PREFIX ?=
 
 ifeq ($(HOST_OS),windows)
 CXXFLAGS += -fext-numeric-literals -D__LITTLE_ENDIAN__
@@ -125,7 +125,8 @@ $(wildcard tensorflow/lite/kernels/internal/*.c) \
 $(wildcard tensorflow/lite/kernels/internal/optimized/*.c) \
 $(wildcard tensorflow/lite/kernels/internal/reference/*.c) \
 $(wildcard tensorflow/lite/tools/make/downloads/farmhash/src/farmhash.cc) \
-$(wildcard tensorflow/lite/tools/make/downloads/fft2d/fftsg.c)
+$(wildcard tensorflow/lite/tools/make/downloads/fft2d/fftsg.c) \
+$(wildcard tensorflow/lite/tools/make/downloads/flatbuffers/src/util.cpp)
 endif
 # Remove any duplicates.
 CORE_CC_ALL_SRCS := $(sort $(CORE_CC_ALL_SRCS))
@@ -134,6 +135,7 @@ $(wildcard tensorflow/lite/*test.cc) \
 $(wildcard tensorflow/lite/*/*test.cc) \
 $(wildcard tensorflow/lite/*/*/*test.cc) \
 $(wildcard tensorflow/lite/*/*/*/*test.cc) \
+$(wildcard tensorflow/lite/kernels/*test_main.cc) \
 $(wildcard tensorflow/lite/kernels/*test_util.cc) \
 $(MINIMAL_SRCS)
 
@@ -150,7 +152,8 @@ else
 	CORE_CC_EXCLUDE_SRCS += tensorflow/lite/mmap_allocation_disabled.cc
 endif
 
-BUILD_WITH_NNAPI=true
+#BUILD_WITH_NNAPI=true
+BUILD_WITH_NNAPI=false
 ifeq ($(BUILD_TYPE),micro)
 	BUILD_WITH_NNAPI=false
 endif
@@ -223,18 +226,18 @@ BENCHMARK_LIB := $(LIBDIR)$(BENCHMARK_LIB_NAME)
 BENCHMARK_BINARY := $(BINDIR)$(BENCHMARK_BINARY_NAME)
 MINIMAL_BINARY := $(BINDIR)minimal
 
-CXX := $(CC_PREFIX)${TARGET_TOOLCHAIN_PREFIX}g++
-CC := $(CC_PREFIX)${TARGET_TOOLCHAIN_PREFIX}gcc
-AR := $(CC_PREFIX)${TARGET_TOOLCHAIN_PREFIX}ar
+CXX ?= $(CC_PREFIX)${TARGET_TOOLCHAIN_PREFIX}g++
+CC ?= $(CC_PREFIX)${TARGET_TOOLCHAIN_PREFIX}gcc
+AR ?= $(CC_PREFIX)${TARGET_TOOLCHAIN_PREFIX}ar
 
 MINIMAL_OBJS := $(addprefix $(OBJDIR), \
 $(patsubst %.cc,%.o,$(patsubst %.c,%.o,$(MINIMAL_SRCS))))
 
 LIB_OBJS := $(addprefix $(OBJDIR), \
-$(patsubst %.cc,%.o,$(patsubst %.c,%.o,$(TF_LITE_CC_SRCS))))
+$(patsubst %.cc,%.o,$(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(TF_LITE_CC_SRCS)))))
 
 BENCHMARK_OBJS := $(addprefix $(OBJDIR), \
-$(patsubst %.cc,%.o,$(patsubst %.c,%.o,$(BENCHMARK_SRCS))))
+$(patsubst %.cc,%.o,$(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(BENCHMARK_SRCS)))))
 
 # For normal manually-created TensorFlow Lite C++ source files.
 $(OBJDIR)%.o: %.cc
@@ -244,6 +247,9 @@ $(OBJDIR)%.o: %.cc
 $(OBJDIR)%.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+$(OBJDIR)%.o: %.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 # The target that's compiled if there's no command-line arguments.
 all: $(LIB_PATH)  $(MINIMAL_BINARY) $(BENCHMARK_BINARY)

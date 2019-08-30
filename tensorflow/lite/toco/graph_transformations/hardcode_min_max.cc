@@ -407,7 +407,6 @@ bool HardcodeMinMaxForLstmCell(Model* model, Operator* op) {
       changed = HardcodeMinMaxForL2Normalization(model, op);
       break;
 
-    case OperatorType::kAbs:
     case OperatorType::kRelu:
       // For any normalization other than batch norm, the quantizations ranges
       // before and after relu are expected to be known. Having a quantization

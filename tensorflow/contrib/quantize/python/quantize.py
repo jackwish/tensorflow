@@ -37,9 +37,10 @@ _ACTIVATION_TYPES = {'Relu', 'Relu6', 'Identity'}
 _RELU_TYPES = {'Relu', 'Relu6'}
 
 _QUANTIZATION_OP = {'FakeQuantWithMinMaxVars'}
-_VALID_SRC_OP = {'Add', 'Mul'}
-_INTERMEDIATE_OP = {'Add', 'Mul'}
-_PASS_THROUGH_OP = {'Reshape', 'Identity', 'BatchToSpaceND', 'SpaceToBatchND'}
+_VALID_SRC_OP = {'Add', 'AddV2', 'Mul', 'Sub', 'ConcatV2', 'Abs'}
+_INTERMEDIATE_OP = _VALID_SRC_OP
+_PASS_THROUGH_OP = {'Reshape', 'Identity', 'BatchToSpaceND', 'SpaceToBatchND',
+                    'MaxPool', 'Max', 'Tile', 'Squeeze', 'ExpandDims'}
 _VALID_ACTIVATION_OP = {'Relu', 'Relu6'}
 
 
