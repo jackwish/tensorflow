@@ -1,8 +1,46 @@
+TensorFlow 1.14 fork with Quantization Enhanced!
+================================================
+
+Holding enhanced quantization functionality based on r1.14.
+
+## Why This Repo
+
+TensorFlow is now 2.0 which breaks many legacy code - not limited to the
+training but also inferencing and serving. I agree that a decent modularized
+design is really helpful for both the developers and end users, but not all
+legacy code can migrate to 2.0, especially the already deployed ones.
+
+As TensorFlow accepts PR for `master` branch (which is 2.0 now) only, the
+1.x branches quantization support is as it is. And, in 2.0, Quantization-aware
+Training has been moved to the [model optimization](https://github.com/tensorflow/model-optimization)
+package, it's hard to manage for me.
+
+This repo contains quantization enhancement including my code and some
+backports. Please feel free to open PR to add more features.
+
+Cheers!
+
+## Feature List
+
+### Graph Converter and Kernel in TFLite
+
+* Quantized `Abs`
+* Quantized `Div`
+
+### Quantization-aware Training
+
+* Sub
+* Concat
+* Tile
+* Squeeze
+* ExpandDims
+* Abs
+
+
 <div align="center">
   <img src="https://www.tensorflow.org/images/tf_logo_social.png">
 </div>
 
------------------
 
 
 | **`Documentation`** |
