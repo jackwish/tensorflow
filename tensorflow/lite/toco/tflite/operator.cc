@@ -2610,8 +2610,7 @@ std::vector<std::unique_ptr<BaseOperator>> BuildOperatorList(
       "SQUARE", OperatorType::kSquare));
   ops.push_back(MakeUnique<SimpleOperator<TensorFlowZerosLikeOperator>>(
       "ZEROS_LIKE", OperatorType::kZerosLike));
-  ops.push_back(
-      MakeUnique<SimpleOperator<AbsOperator>>("ABS", OperatorType::kAbs));
+  ops.push_back(MakeUnique<Abs>());
   ops.push_back(
       MakeUnique<SimpleOperator<FillOperator>>("FILL", OperatorType::kFill));
   ops.push_back(MakeUnique<SimpleOperator<ReverseV2Operator>>(
