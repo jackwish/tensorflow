@@ -18,6 +18,7 @@ limitations under the License.
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "tensorflow/lite/toco/graph_transformations/graph_transformations.h"
@@ -37,42 +38,68 @@ bool SupportsQuantization(const Operator& op) {
     auto* unsupported = static_cast<const TensorFlowUnsupportedOperator*>(&op);
     return unsupported->quantized;
   }
-  return type == OperatorType::kConv || type == OperatorType::kDepthwiseConv ||
-         type == OperatorType::kFullyConnected ||
-         type == OperatorType::kAbs ||
-         type == OperatorType::kConcatenation ||
-         type == OperatorType::kL2Normalization || type == OperatorType::kAdd ||
-         type == OperatorType::kAveragePool || type == OperatorType::kMaxPool ||
-         type == OperatorType::kMinimum || type == OperatorType::kMaximum ||
-         type == OperatorType::kLogistic || type == OperatorType::kSoftmax ||
-         type == OperatorType::kLogSoftmax || type == OperatorType::kSlice ||
-         type == OperatorType::kResizeBilinear ||
-         type == OperatorType::kSplit || type == OperatorType::kSub ||
-         type == OperatorType::kSqueeze || type == OperatorType::kPad ||
-         type == OperatorType::kPadV2 || type == OperatorType::kReshape ||
-         type == OperatorType::kTanh || type == OperatorType::kMul ||
-         type == OperatorType::kBatchToSpaceND || type == OperatorType::kSum ||
-         type == OperatorType::kSpaceToBatchND ||
-         type == OperatorType::kSpaceToDepth ||
-         type == OperatorType::kStridedSlice ||
-         type == OperatorType::kDepthToSpace ||
-         type == OperatorType::kLstmCell || type == OperatorType::kGather ||
-         type == OperatorType::kTranspose || type == OperatorType::kMean ||
-         type == OperatorType::kEqual || type == OperatorType::kGreater ||
-         type == OperatorType::kGreaterEqual || type == OperatorType::kLess ||
-         type == OperatorType::kLessEqual || type == OperatorType::kSelect ||
-         type == OperatorType::kArgMax || type == OperatorType::kRelu ||
-         type == OperatorType::kRelu1 || type == OperatorType::kRelu6 ||
-         type == OperatorType::kLeakyRelu || type == OperatorType::kShape ||
-         type == OperatorType::kExpandDims || type == OperatorType::kPack ||
-         type == OperatorType::kUnpack || type == OperatorType::kTopK_V2 ||
-         type == OperatorType::kRandomUniform ||
-         type == OperatorType::kResizeNearestNeighbor ||
-         type == OperatorType::kPRelu || type == OperatorType::kReduceMax ||
-         type == OperatorType::kReduceMin ||
-         type == OperatorType::kTransposeConv ||
-         type == OperatorType::kMatrixSetDiag ||
-         type == OperatorType::kMatrixDiag;
+  // Please add op in alpha-beta sequence.
+  static const std::unordered_set<OperatorType> supported_ops {
+         OperatorType::kAbs,
+         OperatorType::kAdd,
+         OperatorType::kArgMax,
+         OperatorType::kAveragePool,
+         OperatorType::kBatchToSpaceND,
+         OperatorType::kConcatenation,
+         OperatorType::kConv,
+         OperatorType::kDepthToSpace,
+         OperatorType::kDepthwiseConv,
+         OperatorType::kEqual,
+         OperatorType::kExpandDims,
+         OperatorType::kFullyConnected,
+         OperatorType::kGather,
+         OperatorType::kGreater,
+         OperatorType::kGreaterEqual,
+         OperatorType::kL2Normalization,
+         OperatorType::kLeakyRelu,
+         OperatorType::kLess,
+         OperatorType::kLessEqual,
+         OperatorType::kLogistic,
+         OperatorType::kLogSoftmax,
+         OperatorType::kLstmCell,
+         OperatorType::kMatrixDiag,
+         OperatorType::kMatrixSetDiag,
+         OperatorType::kMaximum,
+         OperatorType::kMaxPool,
+         OperatorType::kMean,
+         OperatorType::kMinimum,
+         OperatorType::kMul,
+         OperatorType::kPack,
+         OperatorType::kPad,
+         OperatorType::kPadV2,
+         OperatorType::kPRelu,
+         OperatorType::kRandomUniform,
+         OperatorType::kReduceMax,
+         OperatorType::kReduceMin,
+         OperatorType::kRelu,
+         OperatorType::kRelu1,
+         OperatorType::kRelu6,
+         OperatorType::kReshape,
+         OperatorType::kResizeBilinear,
+         OperatorType::kResizeNearestNeighbor,
+         OperatorType::kSelect,
+         OperatorType::kShape,
+         OperatorType::kSlice,
+         OperatorType::kSoftmax,
+         OperatorType::kSpaceToBatchND,
+         OperatorType::kSpaceToDepth,
+         OperatorType::kSplit,
+         OperatorType::kSqueeze,
+         OperatorType::kStridedSlice,
+         OperatorType::kSub,
+         OperatorType::kSum,
+         OperatorType::kTanh,
+         OperatorType::kTopK_V2,
+         OperatorType::kTranspose,
+         OperatorType::kTransposeConv,
+         OperatorType::kUnpack,
+  };
+  return supported_ops.find(type) != supported_ops.end();
 }
 
 // The quantized op allows output arrays of type float using
